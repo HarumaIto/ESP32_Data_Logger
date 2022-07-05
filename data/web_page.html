@@ -25,6 +25,7 @@
             <button type="button" onclick="createCSV()">データ保存</button>
         </div>
         <script>
+            /* 制御のボタン*/
             var recording = false;
 
             const startButton = document.getElementById('start');
@@ -33,18 +34,19 @@
 
             function startRecord() {
                 recording = true;
+                setIntervalTimer();
                 startButton.disabled = true;
                 pauseButton.disabled = false;
                 stopButton.disabled  = false;
             }
             function pauseRecord() {
+                setIntervalTimer();
                 if (!recording) {
                     recording = true;
                     pauseButton.textContent = '一時停止';
                     stopButton.disabled  = false;
                 } else {
                     recording = false;
-                    sendStopResponse();
                     pauseButton.textContent = '再開';
                     startButton.disabled = true;
                     pauseButton.disabled = false;
@@ -52,13 +54,14 @@
                 }
             }
             function stopRecord() {
+                setIntervalTimer();
                 recording = false;
-                sendStopResponse();
                 startButton.disabled = false;
                 pauseButton.disabled = true;
                 stopButton.disabled  = true;
             }
 
+            /* csvを作成する */
             function createCSV() {
                 // データを作成
                 var csvRows = [["時間", "計測時間", "データ"]] // headerを用意
@@ -105,7 +108,7 @@
                 console.log(frequency);
             });
 
-            // チャートに使うデータを作成
+            /* チャートに使うデータを作成 */
             var sensorData = [];
             var worldTime = [];
             var localTime = [];
@@ -115,33 +118,39 @@
             console.log(baseTime);
 
             // URLにリクエストをしてデータを取得する
-            setInterval(function () {
-                if (recording) {
+            var intervalID = 0;
+            function setIntervalTimer() {
+                if (intervalID > 0) {
+                    clearInterval(intervalID);
+                    intervalID = 0;
                     var xhttp = new XMLHttpRequest();
-                    xhttp.onreadystatechange = function() {
-                        if (this.readyState == 4 && this.status == 200) {
-                            sensorData.push(parseFloat(this.response));
-
-                            var lDate = new Date();
-                            worldTime.push(""+lDate.getHours()+lDate.getMinutes()+lDate.getSeconds()+lDate.getMilliseconds());
-                            localTime.push(worldTime.slice(-1)[0] - baseTime);
-                        
-                            myChart.update();
-                        }
-                    };
-                    xhttp.open("GET", "/sensor", true);
+                    xhttp.open("GET", "/", true);
                     xhttp.send();
-                }
-            }, frequency);
+                } else {
+                    intervalID = setInterval(function () {
+                        if (recording) {
+                            var xhttp = new XMLHttpRequest();
+                            xhttp.onreadystatechange = function() {
+                                if (this.readyState == 4 && this.status == 200) {
+                                    sensorData.push(parseFloat(this.response));
 
-            function sendStopResponse() {
-                var xhttp = new XMLHttpRequest();
-                xhttp.open("GET", "/", true);
-                xhttp.send();
+                                    var lDate = new Date();
+                                    worldTime.push(""+lDate.getHours()+lDate.getMinutes()+lDate.getSeconds()+lDate.getMilliseconds());
+                                    localTime.push(worldTime.slice(-1)[0] - baseTime);
+                        
+                                    myChart.update();
+                                }
+                            };
+                            xhttp.open("GET", "/sensor", true);
+                            xhttp.send();
+                        }
+                    }, frequency);
+                }
             }
 
-            var ctx = document.getElementById('ChartID').getContext('2d');
+
             // チャートを作成
+            var ctx = document.getElementById('ChartID').getContext('2d');
             var myChart = new Chart(ctx, {
                 type: 'line',
                 data: {

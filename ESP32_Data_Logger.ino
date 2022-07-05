@@ -2,8 +2,30 @@
 #include <ESPAsyncWebServer.h>
 #include <SPIFFS.h>
 
-// 定数
-#define CHART_SZ 600
+/*  
+ *  Pinを宣言
+ *  GPIO0 A11 Serial系   ADC2
+ *  GPIO2 A12 Serial系   ADC2
+ *  GPIO4 A10            ADC2
+ *  GPIO12 A15 Serial系  ADC2
+ *  GPIO13 A14           ADC2
+ *  GPIO14 A16           ADC2
+ *  GPIO15 A13 Serial系  ADC2
+ *  GPIO25 A18           ADC2
+ *  GPIO26 A19           ADC2
+ *  GPIO27 A17           ADC2
+ *  
+ *  GPIO32 A4            ADC1
+ *  GPIO33 A5            ADC1
+ *  GPIO34 A6            ADC1
+ *  GPIO35 A7            ADC1
+ *  GPIO36 A0            ADC1
+ *  GPIO39 A3            ADC1
+ *  
+ *  "Serial系"はコンパイル時にPinを接続していない状態にする必要がある
+ *  "ADC2"はWiFi使用時に使えない
+ *  "ADC1"はWiFi使用時に使える
+ */
 
 // Wifiで使う変数の初期化
 char ssid[] = "ESP32APWIFI";
@@ -11,53 +33,39 @@ char pass[] = "esp32apwifi";
 const IPAddress ip(192,168,11, 2);
 const IPAddress subnet(255, 255, 255, 0);
 
-// webで使う
-String header = "";
-boolean recording = false;
-String startDisabled = "";
-String pauseDisabled = "disabled";
-String stopDisabled = "disabled";
-
-// グラフに表示するデータ
-float cData;
-float chartData[CHART_SZ];
-// センサのデータ(JSON形式)
-const char SENSOR_JSON[] PROGMEM = R"=====({"val1":%.1f})=====";
-
 // サーバーを初期化
 AsyncWebServer webServer(80);
 
+// センサーからデータ取得
 String readSensorData() {
-  int data = analogRead(A4);
-  if (isnan(data)) {
+  int sensorData = analogRead(A4);
+  if (isnan(sensorData)) {
     Serial.println("正しく数値が取れていません");
     return "";
   } else {
-    Serial.println(data);
-    return String(data);
+    return String(sensorData);
   }
 }
 
 void setup() {
   // シリアル
   Serial.begin(115200);
-  while (!Serial) {
-    ;// wait for serial port to connect. Needed for native USB port only
-  }
+  // シリアルポートの接続を待つ
+  while (!Serial) {}
 
   Serial.println("wifi setup start");
-  WiFi.disconnect(true);
 
   // softAPを設定
   WiFi.softAP(ssid, pass);
   WiFi.softAPConfig(ip, ip, subnet);
 
+  // SPIFFSを設定する
   if(!SPIFFS.begin(true)){
       Serial.println("SPIFFS Mount Failed");
       return;
   }
 
-  // wait 1 seconds for connection:
+  // アクセスポイントのセットアップを待つ
   delay(1000);
 
   // serverを設定
@@ -77,5 +85,4 @@ void setup() {
   Serial.println("Server starting!");
 }
 
-void loop() {
-}
+void loop() {}
