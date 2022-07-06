@@ -38,12 +38,19 @@ AsyncWebServer webServer(80);
 
 // センサーからデータ取得
 String readSensorData() {
-  int sensorData = analogRead(A4);
-  if (isnan(sensorData)) {
+  int a4 = analogRead(A4);
+  int a5 = analogRead(A5);
+  int a6 = analogRead(A6);
+  int a7 = analogRead(A7);
+  int a0 = analogRead(A0);
+  int a3 = analogRead(A4);
+  if (isnan(a4)) {
     Serial.println("正しく数値が取れていません");
     return "";
   } else {
-    return String(sensorData);
+    String result = String(a4)+","+String(a5)+","+String(a6)+","+String(a7)+","+String(a0)+","+String(a3);
+    Serial.println(result);
+    return result;
   }
 }
 

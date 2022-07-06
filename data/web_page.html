@@ -18,6 +18,14 @@
             Hz
             <button id="frequency_submit">OK</button>
         </form>
+        <div id="pin_setting">
+            <label><input type="checkbox" name="pin" value="GPIO32" onchange="chengePinSetting()"> GPIO32</label>
+            <label><input type="checkbox" name="pin" value="GPIO33" onchange="chengePinSetting()"> GPIO33</label>    
+            <label><input type="checkbox" name="pin" value="GPIO34" onchange="chengePinSetting()"> GPIO34</label>
+            <label><input type="checkbox" name="pin" value="GPIO35" onchange="chengePinSetting()"> GPIO35</label>    
+            <label><input type="checkbox" name="pin" value="GPIO36" onchange="chengePinSetting()"> GPIO36</label>
+            <label><input type="checkbox" name="pin" value="GPIO39" onchange="chengePinSetting()"> GPIO39</label>
+            </div>
         <div style="height: 300px; width: 600px; margin: auto;">
             <canvas id="ChartID"></canvas>
         </div>
@@ -59,6 +67,15 @@
                 startButton.disabled = false;
                 pauseButton.disabled = true;
                 stopButton.disabled  = true;
+            }
+
+            var pins = [false, false, false, false, false, false];
+            function chengePinSetting() {
+                const pinSetting = document.getElementById('pin_setting');
+                const pin = document.getElementsByName('pin');
+                for (let i=0; i<pin.length; i++) {
+                    pins[i] = pin[i].checked;
+                }
             }
 
             /* csvを作成する */
@@ -109,7 +126,10 @@
             });
 
             /* チャートに使うデータを作成 */
-            var sensorData = [];
+            var sensorData = new Array(6);
+            for (var i=0; i<sensorData.length; i++) {
+	            sensorData[i] = new Array();
+            }
             var worldTime = [];
             var localTime = [];
             var frequency = 1/100*1000;
@@ -132,8 +152,14 @@
                             var xhttp = new XMLHttpRequest();
                             xhttp.onreadystatechange = function() {
                                 if (this.readyState == 4 && this.status == 200) {
-                                    sensorData.push(parseFloat(this.response));
-
+                                    var responses = String(this.response).split(',');
+                                    for (let i=0; i<6; i++) {
+                                        if (pins[i]) {
+                                            sensorData[i].push(parseFloat(responses[i]));
+                                        } else {
+                                            sensorData[i].push(-1.0);
+                                        }
+                                    }
                                     var lDate = new Date();
                                     worldTime.push(""+lDate.getHours()+lDate.getMinutes()+lDate.getSeconds()+lDate.getMilliseconds());
                                     localTime.push(worldTime.slice(-1)[0] - baseTime);
@@ -148,7 +174,6 @@
                 }
             }
 
-
             // チャートを作成
             var ctx = document.getElementById('ChartID').getContext('2d');
             var myChart = new Chart(ctx, {
@@ -157,14 +182,64 @@
                     labels: localTime,
                     datasets: [{
                         type:'line',
-                        label: 'データ1',
-                        data: sensorData,
+                        label: 'IO32',
+                        data: sensorData[0],
                         borderColor: 'red', //線の色
                         backgroundColor: 'red', //下を塗りつぶした時の色
                         borderWidth: 1, //線の幅
                         pointRadius: 1, //プロットした点の大きさ
                         pointHoverBorderWidth: 1, //選択した時に大きく表示するサイズ
                         pointStyle: 'triangle', //プロットした点の表示（△）
+                    }, {
+                        type:'line',
+                        label: 'IO33',
+                        data: sensorData[1],
+                        borderColor: 'orange', 
+                        backgroundColor: 'orange',
+                        borderWidth: 1, 
+                        pointRadius: 1,
+                        pointHoverBorderWidth: 1,
+                        pointStyle: 'triangle', 
+                    }, {
+                        type:'line',
+                        label: 'IO34',
+                        data: sensorData[2],
+                        borderColor: 'yellow', 
+                        backgroundColor: 'yellow', 
+                        borderWidth: 1, 
+                        pointRadius: 1, 
+                        pointHoverBorderWidth: 1,
+                        pointStyle: 'triangle', 
+                    }, {
+                        type:'line',
+                        label: 'IO35',
+                        data: sensorData[3],
+                        borderColor: 'green', 
+                        backgroundColor: 'green',
+                        borderWidth: 1, 
+                        pointRadius: 1, 
+                        pointHoverBorderWidth: 1, 
+                        pointStyle: 'triangle',
+                    }, {
+                        type:'line',
+                        label: 'IO36',
+                        data: sensorData[4],
+                        borderColor: 'blue', 
+                        backgroundColor: 'blue',
+                        borderWidth: 1, 
+                        pointRadius: 1, 
+                        pointHoverBorderWidth: 1, 
+                        pointStyle: 'triangle',
+                    }, {
+                        type:'line',
+                        label: 'IO39',
+                        data: sensorData[5],
+                        borderColor: 'purple', 
+                        backgroundColor: 'purple',
+                        borderWidth: 1, 
+                        pointRadius: 1, 
+                        pointHoverBorderWidth: 1, 
+                        pointStyle: 'triangle',
                     },]
                 },
                 options: {
