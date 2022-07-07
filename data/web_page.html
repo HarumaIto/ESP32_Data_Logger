@@ -25,7 +25,7 @@
             <label><input type="checkbox" name="pin" value="GPIO35" onchange="chengePinSetting()"> GPIO35</label>    
             <label><input type="checkbox" name="pin" value="GPIO36" onchange="chengePinSetting()"> GPIO36</label>
             <label><input type="checkbox" name="pin" value="GPIO39" onchange="chengePinSetting()"> GPIO39</label>
-            </div>
+        </div>
         <div style="height: 300px; width: 600px; margin: auto;">
             <canvas id="ChartID"></canvas>
         </div>
@@ -33,6 +33,8 @@
             <button type="button" onclick="createCSV()">データ保存</button>
         </div>
         <script>
+            let baseTime = 0;
+            let addTime = 0;
             /* 制御のボタン*/
             var recording = false;
 
@@ -46,6 +48,7 @@
                 startButton.disabled = true;
                 pauseButton.disabled = false;
                 stopButton.disabled  = false;
+                baseTime = Date.now();
             }
             function pauseRecord() {
                 setIntervalTimer();
@@ -53,12 +56,14 @@
                     recording = true;
                     pauseButton.textContent = '一時停止';
                     stopButton.disabled  = false;
+                    baseTime = Date.now();
                 } else {
                     recording = false;
                     pauseButton.textContent = '再開';
                     startButton.disabled = true;
                     pauseButton.disabled = false;
                     stopButton.disabled  = true;
+                    addTime = localTime.slice(-1)[0];
                 }
             }
             function stopRecord() {
@@ -77,16 +82,23 @@
                     pins[i] = pin[i].checked;
                 }
             }
-
+            
             /* csvを作成する */
             function createCSV() {
                 // データを作成
-                var csvRows = [["時間", "計測時間", "データ"]] // headerを用意
-                for (i=0; i<ramdomval.length; i++) {
-                    csvRows[i+1] = [worldTime[i],localTime[i],sensorData[i]]
+                var csvRows = [["時間", "計測時間", "IO32", "IO33", "IO34", "IO35", "IO36", "IO39"]] // headerを用意
+                for (i=0; i<sensorData.length; i++) {
+                    csvRows[i+1] = [
+                        worldTime[i],
+                        localTime[i],
+                        sensorData[0][i],
+                        sensorData[1][i],
+                        sensorData[2][i],
+                        sensorData[3][i],
+                        sensorData[4][i],
+                        sensorData[5][i]
+                    ]
                 }
-
-                console.log(csvRows);
 
                 // 作った二次元配列をCSV文字列に直す。
                 let csvString  = "";
@@ -133,9 +145,6 @@
             var worldTime = [];
             var localTime = [];
             var frequency = 1/100*1000;
-            var date = new Date();
-            const baseTime = ""+date.getHours()+date.getMinutes()+date.getSeconds()+date.getMilliseconds();
-            console.log(baseTime);
 
             // URLにリクエストをしてデータを取得する
             var intervalID = 0;
@@ -157,12 +166,12 @@
                                         if (pins[i]) {
                                             sensorData[i].push(parseFloat(responses[i]));
                                         } else {
-                                            sensorData[i].push(-1.0);
+                                            sensorData[i].push(-10);
                                         }
                                     }
-                                    var lDate = new Date();
-                                    worldTime.push(""+lDate.getHours()+lDate.getMinutes()+lDate.getSeconds()+lDate.getMilliseconds());
-                                    localTime.push(worldTime.slice(-1)[0] - baseTime);
+                                    const time = Date.now();
+                                    worldTime.push(time);
+                                    localTime.push(time - baseTime + addTime);
                         
                                     myChart.update();
                                 }
