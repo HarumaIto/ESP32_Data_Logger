@@ -31,7 +31,7 @@
 // Wifiで使う変数の初期化
 char ssid[] = "ESP32APWIFI";
 char pass[] = "esp32apwifi";
-const IPAddress ip(192,168,11, 2);
+const IPAddress ip(192,168,0,32);
 const IPAddress subnet(255, 255, 255, 0);
 
 // サーバーを初期化
