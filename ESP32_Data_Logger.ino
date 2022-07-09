@@ -68,7 +68,6 @@ String getSensorData() {
 // ADXL345（3軸加速度センサ）を使ったサンプル
 // ご自身のI2Cのデータの取得方法に変更してください
 String getI2CData() {
-  return "1000,2000,3000";
   // 変数を宣言
   String result;
   unsigned int dac[6];
