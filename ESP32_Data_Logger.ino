@@ -1,6 +1,7 @@
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <SPIFFS.h>
+#include <Wire.h>
 
 /*  
  *  Pinを宣言
@@ -36,8 +37,17 @@ const IPAddress subnet(255, 255, 255, 0);
 // サーバーを初期化
 AsyncWebServer webServer(80);
 
+// I2Cのアドレス指定
+#define ADXL345_ADDR 0x53
+#define DATA_FORMAT 0x31
+#define POWER_CTL 0x2D
+#define DATAX0 0x32
+#define FULL_RES_16G 0x0B
+#define BIT10_16G 0x03
+#define MEASURE 0x08
+
 // センサーからデータ取得
-String readSensorData() {
+String getSensorData() {
   int a4 = analogRead(A4);
   int a5 = analogRead(A5);
   int a6 = analogRead(A6);
@@ -54,11 +64,56 @@ String readSensorData() {
   }
 }
 
+// I2Cからデータを取得
+// ADXL345（3軸加速度センサ）を使ったサンプル
+// ご自身のI2Cのデータの取得方法に変更してください
+String getI2CData() {
+  return "1000,2000,3000";
+  // 変数を宣言
+  String result;
+  unsigned int dac[6];
+  unsigned int i, x, y, z;
+  float xAxis, yAxis, zAxis;
+
+  Wire.beginTransmission(ADXL345_ADDR);// I2Cスレーブのデータ送信開始
+  Wire.write(DATAX0);                  // 出力データバイトを「X軸データ0」のアドレスに指定
+  Wire.endTransmission();              // I2Cスレーブのデータ送信終了
+  
+  Wire.requestFrom(ADXL345_ADDR, 6);   // I2Cデバイス「ADXL345」に6Byteのデータ要求
+  for (i=0; i<6; i++){
+    while (Wire.available() == 0 ){}
+    dac[i] = Wire.read();              // dacにI2Cデバイス「ADXL345」のデータ読み込み
+  }
+
+  x = (dac[1] << 8) | dac[0];     // 2Byte目のデータを8bit左にシフト、OR演算子で1Byte目のデータを結合して、xに代入
+  xAxis = float(x) * 0.0392266;   // 加速度の計算、xAxisに代入 ※0.0392266=(4/1000*9.80665)
+  y = (dac[3] << 8) | dac[2];     // 2Byte目のデータを8bit左にシフト、OR演算子で1Byte目のデータを結合して、xに代入
+  yAxis = float(y) * 0.0392266;   // 加速度の計算、yAxisに代入
+  z = (dac[5] << 8) | dac[4];     // 2Byte目のデータを8bit左にシフト、OR演算子で1Byte目のデータを結合して、xに代入
+  zAxis = float(z) * 0.0392266;   // 加速度の計算、zAxisに代入
+
+  // "a,b,c"という形式で送信
+  result = String(xAxis)+","+String(yAxis)+","+String(zAxis);
+  return result;
+}
+
 void setup() {
   // シリアル
   Serial.begin(115200);
   // シリアルポートの接続を待つ
   while (!Serial) {}
+
+  // I2Cを初期化
+  Wire.begin();
+  Wire.beginTransmission(ADXL345_ADDR);// I2Cスレーブのデータ送信開始
+  Wire.write(DATA_FORMAT);             // データ・フォーマット・コントロール
+  Wire.write(FULL_RES_16G);            // 「最大分解能モード」、「±16g」
+  Wire.endTransmission();              // I2Cスレーブのデータ送信終了
+ 
+  Wire.beginTransmission(ADXL345_ADDR);// I2Cスレーブのデータ送信開始
+  Wire.write(POWER_CTL);               // 省電力機能コントロール
+  Wire.write(MEASURE);                 // 測定モード
+  Wire.endTransmission();              // I2Cスレーブのデータ送信終了
 
   Serial.println("wifi setup start");
 
@@ -85,8 +140,12 @@ void setup() {
     Serial.println ("send html");
   });
   webServer.on("/sensor", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/plain", readSensorData().c_str());
-    Serial.println("send data");
+    request->send_P(200, "text/plain", getSensorData().c_str());
+    Serial.println("send sensor data");
+  });
+  webServer.on("/i2c", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send_P(200, "text/plain", getI2CData().c_str());
+    Serial.println("send I2C data");
   });
   webServer.begin();
   Serial.println("Server starting!");

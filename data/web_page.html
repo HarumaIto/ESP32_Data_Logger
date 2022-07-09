@@ -11,10 +11,15 @@
             <button type="button" id="start" onclick="startRecord()">記録開始</button>
             <button type="button" id="pause" onclick="pauseRecord()" disabled>一時停止</button>
             <button type="button" id="stop" onclick="stopRecord()" disabled>記録停止</button>
+            <button type="button" onclick="createCSV()">データ保存</button>
+        </div>
+        <div id="used_chart">
+            <label><input type="checkbox" name="source" value="sensor" onchange="chengeUsedChart()" checked>センサチャート</label>
+            <label><input type="checkbox" name="source" value="i2c" onchange="chengeUsedChart()">I2Cチャート</label>
         </div>
         <form style="text-align: center">
-            <label for="frequency">サンプリング周波数を入力してください</label>
-            <br><input type="number" id="frequency" min="1" value="100">
+            <label for="frequency">サンプリング周波数</label>
+            <input type="number" id="frequency" min="1" value="100" style="width:48px;">
             Hz
             <button id="frequency_submit">OK</button>
         </form>
@@ -26,11 +31,16 @@
             <label><input type="checkbox" name="pin" value="GPIO36" onchange="chengePinSetting()"> GPIO36</label>
             <label><input type="checkbox" name="pin" value="GPIO39" onchange="chengePinSetting()"> GPIO39</label>
         </div>
-        <div style="height: 300px; width: 600px; margin: auto;">
-            <canvas id="ChartID"></canvas>
+        <div style="width: 80vw; margin: auto;">
+            <canvas id="ChartID_Sensor"></canvas>
         </div>
-        <div style='text-align: right'>
-            <button type="button" onclick="createCSV()">データ保存</button>
+        <form style="text-align: center;">
+            <label for="numberI2C">I2C通信で使うデータ数</label>
+            <input type="number" id="numberI2C" min="1" max="6" value="1"  style="width:48px;">
+            <button id="number_I2C_submit">OK</button>
+        </form>
+        <div style="width: 80vw; margin: auto;">
+            <canvas id="ChartID_I2C"></canvas>
         </div>
         <script>
             let baseTime = 0;
@@ -48,6 +58,7 @@
                 startButton.disabled = true;
                 pauseButton.disabled = false;
                 stopButton.disabled  = false;
+                resetChartVar();
                 baseTime = Date.now();
             }
             function pauseRecord() {
@@ -74,19 +85,40 @@
                 stopButton.disabled  = true;
             }
 
+            function resetChartVar() {
+                sensorData = createTwoDimensionalArray(6);
+                i2cData = createTwoDimensionalArray(numberI2C);
+                localTime = [];
+                worldTime = [];
+                addTime = 0;
+            }
+
             var pins = [false, false, false, false, false, false];
             function chengePinSetting() {
-                const pinSetting = document.getElementById('pin_setting');
                 const pin = document.getElementsByName('pin');
                 for (let i=0; i<pin.length; i++) {
                     pins[i] = pin[i].checked;
+                }
+            }
+
+            var sources = [true, false];
+            function chengeUsedChart() {
+                const source = document.getElementsByName('source');
+                if (sources[0]) {
+                    source[0].checked = false;
+                    source[1].checked = true;
+                    sources = [false, true];
+                } else {
+                    source[0].checked = true;
+                    source[1].checked = false;
+                    sources = [true, false];
                 }
             }
             
             /* csvを作成する */
             function createCSV() {
                 // データを作成
-                var csvRows = [["時間", "計測時間", "IO32", "IO33", "IO34", "IO35", "IO36", "IO39"]] // headerを用意
+                var csvRows = [["時間", "計測時間", "IO32", "IO33", "IO34", "IO35", "IO36", "IO39"]]; // headerを用意
                 for (i=0; i<sensorData.length; i++) {
                     csvRows[i+1] = [
                         worldTime[i],
@@ -96,7 +128,7 @@
                         sensorData[2][i],
                         sensorData[3][i],
                         sensorData[4][i],
-                        sensorData[5][i]
+                        sensorData[5][i],
                     ]
                 }
 
@@ -129,22 +161,43 @@
 
             // サンプリング周波数を取得
             var frequencSubmit = document.getElementById("frequency_submit");
-
             frequencSubmit.addEventListener("click", function(e) {
                 e.preventDefault();
                 var number = document.getElementById("frequency").value;
                 frequency = 1/Number(number)*1000;
-                console.log(frequency);
+            });
+
+            // I2Cで使用するデータ数を取得
+            var numberI2C = 1;
+            var numberI2CSubmit = document.getElementById("number_I2C_submit");
+            numberI2CSubmit.addEventListener("click", function(e) {
+                e.preventDefault();
+                numberI2C = document.getElementById("numberI2C").value;
+                i2cData = createTwoDimensionalArray(numberI2C);
+                i2cDatasets = createI2CDatasets();
+                i2cChart.destroy();
+                i2cChart = createI2CChart();
             });
 
             /* チャートに使うデータを作成 */
-            var sensorData = new Array(6);
-            for (var i=0; i<sensorData.length; i++) {
-	            sensorData[i] = new Array();
-            }
+            var sensorData = createTwoDimensionalArray(6);
+            var i2cData = new Array();
             var worldTime = [];
             var localTime = [];
             var frequency = 1/100*1000;
+
+            // 二次元配列を生成
+            function createTwoDimensionalArray(number) {
+                var array = new Array(number);
+                for (var i=0; i<number; i++) {
+                    array[i] = new Array();
+                }
+                return array;
+            }
+
+            // 定数
+            const pinNumbers = ['IO32', 'IO33', 'IO34', 'IO35', 'IO36', 'IO39'];
+            const chartColors = ['red', 'orange', 'yellow', 'green', 'blue', 'purple'];
 
             // URLにリクエストをしてデータを取得する
             var intervalID = 0;
@@ -157,7 +210,8 @@
                     xhttp.send();
                 } else {
                     intervalID = setInterval(function () {
-                        if (recording) {
+                        if (recording && sources[0]) {
+                            // センサ用
                             var xhttp = new XMLHttpRequest();
                             xhttp.onreadystatechange = function() {
                                 if (this.readyState == 4 && this.status == 200) {
@@ -168,117 +222,164 @@
                                         } else {
                                             sensorData[i].push(-10);
                                         }
+                                        // チャートの各グラフのデータをセットしなおす
+                                        sensorChart.data.datasets[i].data = sensorData[i];
                                     }
                                     const time = Date.now();
                                     worldTime.push(time);
                                     localTime.push(time - baseTime + addTime);
                         
-                                    myChart.update();
+                                    // チャートのラベルをセットしなおす
+                                    sensorChart.data.labels = localTime;
+                                    sensorChart.update();
                                 }
                             };
                             xhttp.open("GET", "/sensor", true);
+                            xhttp.send();
+                        } else if (recording) {
+                            // I2C用
+                            var xhttp = new XMLHttpRequest();
+                            xhttp.onreadystatechange = function() {
+                                if (this.readyState == 4 && this.status == 200) {
+                                    var responses = String(this.response).split(',');
+                                    for (let i=0; i<numberI2C; i++) {
+                                        i2cData[i].push(parseFloat(responses[i]));
+                                        i2cChart.data.datasets[i].data = i2cData[i];
+                                    }
+                                    const time = Date.now();
+                                    worldTime.push(time);
+                                    localTime.push(time - baseTime + addTime);
+                        
+                                    i2cChart.data.labels = localTime;
+                                    i2cChart.update();
+                                }
+                            };
+                            xhttp.open("GET", "/i2c", true);
                             xhttp.send();
                         }
                     }, frequency);
                 }
             }
 
-            // チャートを作成
-            var ctx = document.getElementById('ChartID').getContext('2d');
-            var myChart = new Chart(ctx, {
+            // センサのチャートを作成
+            var ct1 = document.getElementById('ChartID_Sensor').getContext('2d');
+            var sensorDatasets = createSensorDatasets();
+            var sensorChart = new Chart(ct1, {
                 type: 'line',
                 data: {
-                    labels: localTime,
-                    datasets: [{
-                        type:'line',
-                        label: 'IO32',
-                        data: sensorData[0],
-                        borderColor: 'red', //線の色
-                        backgroundColor: 'red', //下を塗りつぶした時の色
-                        borderWidth: 1, //線の幅
-                        pointRadius: 1, //プロットした点の大きさ
-                        pointHoverBorderWidth: 1, //選択した時に大きく表示するサイズ
-                        pointStyle: 'triangle', //プロットした点の表示（△）
-                    }, {
-                        type:'line',
-                        label: 'IO33',
-                        data: sensorData[1],
-                        borderColor: 'orange', 
-                        backgroundColor: 'orange',
-                        borderWidth: 1, 
-                        pointRadius: 1,
-                        pointHoverBorderWidth: 1,
-                        pointStyle: 'triangle', 
-                    }, {
-                        type:'line',
-                        label: 'IO34',
-                        data: sensorData[2],
-                        borderColor: 'yellow', 
-                        backgroundColor: 'yellow', 
-                        borderWidth: 1, 
-                        pointRadius: 1, 
-                        pointHoverBorderWidth: 1,
-                        pointStyle: 'triangle', 
-                    }, {
-                        type:'line',
-                        label: 'IO35',
-                        data: sensorData[3],
-                        borderColor: 'green', 
-                        backgroundColor: 'green',
-                        borderWidth: 1, 
-                        pointRadius: 1, 
-                        pointHoverBorderWidth: 1, 
-                        pointStyle: 'triangle',
-                    }, {
-                        type:'line',
-                        label: 'IO36',
-                        data: sensorData[4],
-                        borderColor: 'blue', 
-                        backgroundColor: 'blue',
-                        borderWidth: 1, 
-                        pointRadius: 1, 
-                        pointHoverBorderWidth: 1, 
-                        pointStyle: 'triangle',
-                    }, {
-                        type:'line',
-                        label: 'IO39',
-                        data: sensorData[5],
-                        borderColor: 'purple', 
-                        backgroundColor: 'purple',
-                        borderWidth: 1, 
-                        pointRadius: 1, 
-                        pointHoverBorderWidth: 1, 
-                        pointStyle: 'triangle',
-                    },]
+                    label: localTime,
+                    datasets: sensorDatasets,
                 },
                 options: {
                     responsive: true,
                     scales: {
                         x: {
                             display: true,
-                            ticks: {display: true},
-                            title: {  //X軸のタイトルを入れる場合
+                            ticks: { display: true },
+                            title: { 
                                 display: true,
                                 text: '時間',
                                 color: 'black',
                                 font: { size: 16 }
-                            }, //X軸のタイトルを入れる場合--end--
+                            }, 
                         },
                         y: {
-                            display: true, //y軸を表示するか
+                            display: true, 
                             min: 0,
                             max: 4096,
                             ticks: {display: true},
-                            title: { //Y軸のタイトルを入れる場合
-                                display: true, //ｙ軸のタイトルを表示するか
-                                text: 'データ',
+                            title: { 
+                                display: true, 
+                                text: "センサデータ",
                                 color: 'black',
                                 font: { size: 16 }
-                            }, //Y軸のタイトルを入れる場合--end--
+                            }, 
+                        },
+                    }
+                },
+            });
+            // datasetsを動的に作成
+            function createSensorDatasets() {
+                var datasets = [];
+                for (var i=0; i<6; i++) {
+                    datasets.push({
+                        type:'line',
+                        label: pinNumbers[i],
+                        data: sensorData[i],
+                        borderColor: chartColors[i],
+                        backgroundColor: chartColors[i],
+                        borderWidth: 1,
+                        pointRadius: 1, 
+                        pointHoverBorderWidth: 1, 
+                        pointStyle: 'triangle', 
+                    });
+                }
+                return datasets;
+            }
+
+            // I2Cのチャートを生成
+            var ct2 = document.getElementById('ChartID_I2C').getContext('2d');
+            var i2cDatasets = createI2CDatasets();
+            var i2cChart = createI2CChart();
+            function createI2CChart() {
+                return new Chart(ct2, {
+                    type: 'line',
+                    data: {
+                        labels: localTime,
+                        datasets: i2cDatasets,
+                    },
+                    options: createChartOptions('I2Cデータ'),
+                });
+            }
+            // datasetsを動的に作成
+            function createI2CDatasets() {
+                var datasets = [];
+                for (var i=0; i<numberI2C; i++) {
+                    datasets.push({
+                        type:'line',
+                        label: 'データ'+(i+1),
+                        data: i2cData[i],
+                        borderColor: chartColors[i],
+                        backgroundColor: chartColors[i],
+                        borderWidth: 1,
+                        pointRadius: 1, 
+                        pointHoverBorderWidth: 1, 
+                        pointStyle: 'triangle', 
+                    });
+                }
+                return datasets;
+            }
+
+            // チャートのoptionsを作成
+            function createChartOptions(yText) {
+                return {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            display: true,
+                            ticks: { display: true },
+                            title: { 
+                                display: true,
+                                text: '時間',
+                                color: 'black',
+                                font: { size: 16 }
+                            }, 
+                        },
+                        y: {
+                            display: true, 
+                            min: 0,
+                            max: 4096,
+                            ticks: {display: true},
+                            title: { 
+                                display: true, 
+                                text: yText,
+                                color: 'black',
+                                font: { size: 16 }
+                            }, 
                         },
                     }
                 }
-            });
+            }
         </script>
     </body>
 </html>
