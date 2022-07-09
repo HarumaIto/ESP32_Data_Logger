@@ -150,4 +150,5 @@ void setup() {
   Serial.println("Server starting!");
 }
 
+// 何もしない
 void loop() {}
