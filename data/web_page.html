@@ -4,6 +4,26 @@
         <title>データロガー</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
         <script src='chart.min.js'></script>
+        <style>
+            .row {
+                display:inline-block;
+            }
+            .child {
+                margin-left: 16px;
+            }
+            .setting {
+                margin-top: 16px;
+                margin-left: 10%;
+            }
+            .oparationItems {
+                margin-top: 2px;
+                margin-left: 16px;
+            }
+            .chartItem {
+                margin-top: 20px;
+                margin-left: 10%;
+            }
+        </style>
     </head>
     <body>
         <h1 style='text-align: center'>データロガー</h1>
@@ -11,33 +31,44 @@
             <button type="button" id="start" onclick="startRecord()">記録開始</button>
             <button type="button" id="pause" onclick="pauseRecord()" disabled>一時停止</button>
             <button type="button" id="stop" onclick="stopRecord()" disabled>記録停止</button>
-            <button type="button" onclick="createCSV()">データ保存</button>
+            <button type="button" class="child" onclick="createCSV()">データ保存</button>
         </div>
-        <div id="used_chart">
-            <label><input type="checkbox" name="source" value="sensor" onchange="chengeUsedChart()" checked>センサチャート</label>
-            <label><input type="checkbox" name="source" value="i2c" onchange="chengeUsedChart()">I2Cチャート</label>
+        <div class="setting row">
+            使用するチャートを選択
+            <div id="used_chart" class="oparationItems">
+                <label><input type="checkbox" name="source" value="sensor" onchange="chengeUsedChart()" checked>センサチャート</label>
+                <label><input type="checkbox" name="source" value="i2c" onchange="chengeUsedChart()">I2Cチャート</label>
+            </div>
         </div>
-        <form style="text-align: center">
-            <label for="frequency">サンプリング周波数</label>
-            <input type="number" id="frequency" min="1" value="100" style="width:48px;">
-            Hz
-            <button id="frequency_submit">OK</button>
-        </form>
-        <div id="pin_setting">
-            <label><input type="checkbox" name="pin" value="GPIO32" onchange="chengePinSetting()"> GPIO32</label>
-            <label><input type="checkbox" name="pin" value="GPIO33" onchange="chengePinSetting()"> GPIO33</label>    
-            <label><input type="checkbox" name="pin" value="GPIO34" onchange="chengePinSetting()"> GPIO34</label>
-            <label><input type="checkbox" name="pin" value="GPIO35" onchange="chengePinSetting()"> GPIO35</label>    
-            <label><input type="checkbox" name="pin" value="GPIO36" onchange="chengePinSetting()"> GPIO36</label>
-            <label><input type="checkbox" name="pin" value="GPIO39" onchange="chengePinSetting()"> GPIO39</label>
+        <div class="row child">
+            サンプリング周波数
+            <form class="oparationItems">
+                <input type="number" id="frequency" min="1" value="100" style="width:48px;">
+                Hz
+                <button id="frequency_submit">OK</button>
+            </form>
+        </div>
+        <div class="chartItem">
+            使用するPinを選択（複数可）
+            <div id="pin_setting" class="oparationItems">
+                <label><input type="checkbox" name="pin" value="GPIO32" onchange="chengePinSetting()"> GPIO32</label>
+                <label><input type="checkbox" name="pin" value="GPIO33" onchange="chengePinSetting()"> GPIO33</label>    
+                <label><input type="checkbox" name="pin" value="GPIO34" onchange="chengePinSetting()"> GPIO34</label>
+                <label><input type="checkbox" name="pin" value="GPIO35" onchange="chengePinSetting()"> GPIO35</label>    
+                <label><input type="checkbox" name="pin" value="GPIO36" onchange="chengePinSetting()"> GPIO36</label>
+                <label><input type="checkbox" name="pin" value="GPIO39" onchange="chengePinSetting()"> GPIO39</label>
+            </div>
         </div>
         <div style="width: 80vw; margin: auto;">
             <canvas id="ChartID_Sensor"></canvas>
         </div>
-        <form style="text-align: center;">
-            <label for="numberI2C">I2C通信で使うデータ数</label>
-            <input type="number" id="numberI2C" min="1" max="6" value="1"  style="width:48px;">
-            <button id="number_I2C_submit">OK</button>
+        <form class="chartItem">
+            I2C通信で使うデータ数
+            <div class="oparationItems">
+                <input type="number" id="numberI2C" min="1" max="6" value="1"  style="width:48px;">
+                <button id="number_I2C_submit">OK</button>
+            </div>
+            
         </form>
         <div style="width: 80vw; margin: auto;">
             <canvas id="ChartID_I2C"></canvas>
