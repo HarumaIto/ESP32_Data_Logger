@@ -47,6 +47,7 @@ ESPAsyncWebServerが依存しているライブラリ
 3. アクセスポイントに接続できたら、WebサーバーのIPアドレスである「*192.168.0.32*」をブラウザで入力しページにアクセス
 
 ## Webページの使い方
+![dataloggerintroduction](https://user-images.githubusercontent.com/88521121/178200378-556bb40a-3aa2-4130-b34f-5c66927f6b4c.png)
 
 # I2C関連と編集箇所の説明
 40~47行目で定数を宣言  
