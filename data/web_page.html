@@ -36,8 +36,8 @@
         <div class="setting row">
             使用するチャートを選択
             <div id="used_chart" class="oparationItems">
-                <label><input type="checkbox" name="source" value="sensor" onchange="chengeUsedChart()" checked>センサチャート</label>
-                <label><input type="checkbox" name="source" value="i2c" onchange="chengeUsedChart()">I2Cチャート</label>
+                <label><input type="checkbox" id="sensorCheckbox" name="source" value="sensor" onchange="chengeUsedChart()" checked>センサチャート</label>
+                <label><input type="checkbox" id="i2cCheckbox" name="source" value="i2c" onchange="chengeUsedChart()">I2Cチャート</label>
             </div>
         </div>
         <div class="row child">
@@ -76,19 +76,25 @@
         <script>
             let baseTime = 0;
             let addTime = 0;
-            /* 制御のボタン*/
             var recording = false;
 
             const startButton = document.getElementById('start');
             const pauseButton = document.getElementById('pause');
             const stopButton = document.getElementById('stop');
+            const sensorCheckbox = document.getElementById('sensorCheckbox');
+            const i2cCheckbox = document.getElementById('i2cCheckbox');
+            const frequencyText = document.getElementById('frequency');
 
+            // 操作ボタンの処理
             function startRecord() {
                 recording = true;
                 setIntervalTimer();
                 startButton.disabled = true;
                 pauseButton.disabled = false;
                 stopButton.disabled  = false;
+                sensorCheckbox.disabled = true;
+                i2cCheckbox.disabled = true;
+                frequencyText.disabled = true;
                 resetChartVar();
                 baseTime = Date.now();
             }
@@ -114,8 +120,12 @@
                 startButton.disabled = false;
                 pauseButton.disabled = true;
                 stopButton.disabled  = true;
+                sensorCheckbox.disabled = false;
+                i2cCheckbox.disabled = false;
+                frequencyText.disabled = false;
             }
-
+            
+            // 独自のチャートのリセット関数
             function resetChartVar() {
                 sensorData = createTwoDimensionalArray(6);
                 i2cData = createTwoDimensionalArray(numberI2C);
@@ -124,6 +134,7 @@
                 addTime = 0;
             }
 
+            // 各チェックボックスの処理
             var pins = [false, false, false, false, false, false];
             function chengePinSetting() {
                 const pin = document.getElementsByName('pin');
@@ -131,7 +142,6 @@
                     pins[i] = pin[i].checked;
                 }
             }
-
             var sources = [true, false];
             function chengeUsedChart() {
                 const source = document.getElementsByName('source');
@@ -146,24 +156,30 @@
                 }
             }
             
-            /* csvを作成する */
+            // csvを作成する 
             function createCSV() {
+                // headerを用意
+                var csvRows = [["時間", "計測時間[ms]", "IO32", "IO33", "IO34", "IO35", "IO36", "IO39"]]; 
+                for (i=1; i<=numberI2C; i++) {
+                    csvRows[0].push(`I2C${i}`);
+                }
                 // データを作成
-                var csvRows = [["時間", "計測時間", "IO32", "IO33", "IO34", "IO35", "IO36", "IO39"]]; // headerを用意
-                for (i=0; i<sensorData.length; i++) {
+                for (i=0; i<localTime.length; i++) {
                     csvRows[i+1] = [
                         worldTime[i],
                         localTime[i],
-                        sensorData[0][i],
-                        sensorData[1][i],
-                        sensorData[2][i],
-                        sensorData[3][i],
-                        sensorData[4][i],
-                        sensorData[5][i],
+                        checkIsNon(sensorData[0][i]),
+                        checkIsNon(sensorData[1][i]),
+                        checkIsNon(sensorData[2][i]),
+                        checkIsNon(sensorData[3][i]),
+                        checkIsNon(sensorData[4][i]),
+                        checkIsNon(sensorData[5][i]),
                     ]
+                    for (j=0; j<numberI2C; j++) {
+                        csvRows[i+1].push(checkIsNon(i2cData[j][i]));
+                    }
                 }
 
-                // 作った二次元配列をCSV文字列に直す。
                 let csvString  = "";
                 for (let data of csvRows) {
                     csvString += data.join(",");
@@ -172,22 +188,25 @@
 
                 let fileName = "data_loger.csv";
 
-                // csvのバイナリデータを作る
                 let blob = new Blob([csvString], {type: "text/csv"});
                 let uri = URL.createObjectURL(blob);
 
-                //リンクタグを作る
                 let link = document.createElement("a");
                 link.download = fileName;
                 link.href = uri;
 
-                //作ったリンクタグをクリックさせる
                 document.body.appendChild(link);
                 link.click();
 
-                //クリックしたら即リンクタグを消す
                 document.body.removeChild(link);
                 delete link;
+            }
+            // データがあるかどうか調べる
+            function checkIsNon(data) {
+                if (data == -1) {
+                    return '';
+                }
+                return data;
             }
 
             // サンプリング周波数を取得
@@ -210,7 +229,7 @@
                 i2cChart = createI2CChart();
             });
 
-            /* チャートに使うデータを作成 */
+            // チャートに使うデータを作成 
             var sensorData = createTwoDimensionalArray(6);
             var i2cData = new Array();
             var worldTime = [];
@@ -251,13 +270,14 @@
                                         if (pins[i]) {
                                             sensorData[i].push(parseFloat(responses[i]));
                                         } else {
-                                            sensorData[i].push(-10);
+                                            sensorData[i].push(-1);
                                         }
                                         // チャートの各グラフのデータをセットしなおす
                                         sensorChart.data.datasets[i].data = sensorData[i];
                                     }
+                                    const date = new Date();
                                     const time = Date.now();
-                                    worldTime.push(time);
+                                    worldTime.push(`${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`);
                                     localTime.push(time - baseTime + addTime);
                         
                                     // チャートのラベルをセットしなおす
@@ -277,8 +297,10 @@
                                         i2cData[i].push(parseFloat(responses[i]));
                                         i2cChart.data.datasets[i].data = i2cData[i];
                                     }
+                                    
+                                    const date = new Date();
                                     const time = Date.now();
-                                    worldTime.push(time);
+                                    worldTime.push(`${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`);
                                     localTime.push(time - baseTime + addTime);
                         
                                     i2cChart.data.labels = localTime;
